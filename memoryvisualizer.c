@@ -21,8 +21,23 @@ void errors(int argc, char **argv){
     }
     fclose(file);
 }
-
 /*tokenizer functions*/
+char* isfunctionstart(char* start, char* line){
+    //return the pointer to the first function {
+    
+    start = strchr(line, '{');
+    return start;
+}
+
+void remove_newline(char* string) {
+    int i = 0;
+    while (string[i] != 0){
+        if (string[i] == '\n'){
+            string[i] = ' ';
+        }
+        i++;
+    }
+}
 
 int isemptyline(char* line){
     //return 0 if line is not empty, 1 otherwise
@@ -35,49 +50,67 @@ int isemptyline(char* line){
     return 0;
 }
 
-//strdup to duplicate string on heap var = strdup(string)
-// strtok_r()
-
-int isfunctionstart(char* line){
-    //this function will return 1 if line contains a function declaration and 0 otherwise
+void tokenizer_functions(char* filestr){
+    
+    char line[MAX_LINE_LENGHT+1];
+    char* token;
+    char* copyof;
+    
+    copyof = strdup(filestr);
+    while((token = strtok_r(copyof,"{}", &copyof)))
+    {
+        
+        printf("token: %s\n", token);
+    } 
+    
 }
 
+void tokenizer_global(char *line){
+    n
+
+}
+//strdup to duplicate string on heap var = strdup(string)
+// strtok_r()
 char* fileoneline(FILE *fp){
     
     long size;
-    char *oneline;
+    char *onestring;
 
     fseek(fp, 0, SEEK_END);
     size = ftell(fp); //visit the end of file and announce byte;
     rewind(fp); //return to beginning
-    oneline = (char*)malloc(size + 1);
-    fread(oneline, size, 1, fp); //mash all of file into one line
-    oneline[size] = 0; //set end of string delimiter
+    onestring = (char*)malloc(size + 1);
+    fread(onestring, size, 1, fp); //mash all of file into one string
+    onestring[size] = 0; //set end of string delimiter
 
-    return oneline;
+    return onestring;
 }
-
 
 /*main function*/
 int main(int argc, char**argv){
-    
     FILE* fp =  fopen(argv[1], "r");
-    char line[MAX_LINE_LENGHT+1];
-    char* token;
-    char* copyof;
     char* filestr;
 
-    errors(argc, argv);
 
-    filestr = fileoneline(fp);
+
+    /*
+    filestr = fileoneline(fp); //put file in one string
     
-    copyof = strdup(filestr);
-    while(token  = strtok_r(copyof,"(", &copyof))
-    {
-        if (isemptyline(token) == 1){
-             printf("token: %s\n", token);
-        }
-    } 
+    char *file_line_1 = malloc(sizeof(char) * (strlen(filestr) + 1));
+    strncpy(file_line_1, filestr, strlen(filestr)+ 1);
+
+    remove_newline(file_line_1);
+    errors(argc, argv);
+    // until here we read the file content into one string
+    // and de-newlined the string
+
+    char *start = malloc(sizeof(char)); //free me
+    //tokenizer_functions(file_line_1);
+    
+
     fclose(fp);
+    free(file_line_1);
+    */
+
     return 0;
 }
