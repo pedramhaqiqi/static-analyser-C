@@ -5,11 +5,104 @@
 #include <ctype.h> 
 
 #define MAX_LINE_LENGHT 100
+#define MAX_TYPE_LENGHT 30
+#define MAX_NAME_LENGHT 30
+#define MAX_VAR_LENGHT 30
 
-/*function structs*/
+/*structs and linked lists*/
+
+typedef struct variable{
+    char size;
+    char name[MAX_VAR_LENGHT];
+    char type[MAX_TYPE_LENGHT]; 
+    struct variable *next;
+}VAR;
+
 typedef struct functions{
+    int totallines;
+    int totalvar;
+    char name[MAX_NAME_LENGHT];
+    VAR *head;    //local variables
+}FUN;
 
-}function;
+void LLV_inserthead(LL_VAR **head, )
+
+VAR* createnewvar(char* size, char* name, char* type){
+    VAR *variable = malloc(sizeof(VAR));
+    strcpy(variable->name, name);
+    strcpy(variable->type, type);
+    strcpy(variable->size, size);
+    return variable;
+}
+
+VAR* append(VAR *head, char* size, char* name, char* type){
+    // Returns new head after inserting newvar
+    VAR* newvar = createnewvar(size, name, type);
+    newvar->next = head;
+    return newvar;
+}
+/*string manipulators*/
+
+
+void remove_newline(char* string) {
+    int i = 0;
+    while (string[i] != 0){
+        if (string[i] == '\n'){
+            string[i] = ' ';
+        }
+        i++;
+    }
+}
+
+void remove_space(char* string){
+    int i = 0;
+    while (string[i] != 0){
+        if (string[i] == ' '){
+            string[i] = ;
+        }
+        i++;
+    }
+}
+/*validators*/
+int var_assignment_validator(char* line){
+    int t = 0;
+    char eql = '=';
+    if (strchr(line,eql)){
+        t = 1;
+    }
+    return t;
+}
+
+int alloc_validator(char* line){
+    int t = 0;
+    char mall[] = "malloc(";
+    char call[] = "calloc(";
+    if (strstr(line, mall)){
+        t = 1;
+    }
+    else if(strstr(line, call)){
+        t = 1;
+    }
+    return t;
+
+}
+int ifloops_validator(char* line){
+    int t = 0;
+    char ifword[] = "if (";
+    char forword[] = "for(";
+    char whileword[] = "while(";
+
+    if (strstr(line, ifword)){
+        t = 1;
+    }
+    else if(strstr(line, forword)){
+        t = 1;
+    }
+    else if(strstr(line, whileword)){
+        t = 1;
+    }
+    return t;
+}
 
 /*program error handler*/
 void errors(int argc, char **argv){
@@ -22,6 +115,38 @@ void errors(int argc, char **argv){
     fclose(file);
 }
 /*tokenizer functions*/
+VAR* var_parse_append(VAR* head, char* line){
+
+    char size[MAX_NAME_LENGHT];
+    char name[MAX_NAME_LENGHT];
+    char type[MAX_TYPE_LENGHT];
+
+    if(strstr(line, "int")){
+
+    }else if(strstr(line, "char")){
+
+    }else if(strstr(line, "float")){
+
+    }else if(strstr(line, "int*")){
+
+    }else if(strstr(line,"char*")){
+
+    }else if(strstr(line,"float*")){
+
+    }else if(strstr(line,"int[")){
+
+    }else if(strstr(line,"char[")){
+
+    }else if(strstr(line,"float[")){
+
+    }
+
+
+    return append(head, size, name, type);
+}
+
+
+/*
 char* isfunctionstart(char* start, char* line){
     //return the pointer to the first function {
     
@@ -85,11 +210,12 @@ char* fileoneline(FILE *fp){
 
     return onestring;
 }
-
+*/
 /*main function*/
 int main(int argc, char**argv){
     FILE* fp =  fopen(argv[1], "r");
-    char* filestr;
+
+    LL_VAR *list_var_head = NULL;
 
 
 
