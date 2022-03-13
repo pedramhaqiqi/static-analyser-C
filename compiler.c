@@ -83,18 +83,103 @@ char *get_function_params(char* line){
    free(parameters);
    return NULL;
 }
+char *rstrchr(char *str, char c) {
+    //(reads from right) Returns pointer to c in str, and null if it doesnt exist
+  for (int i = strlen(str)-1; i >= 0; --i) {
+    if (str[i] == c) return &str[i];
+  }
+  return NULL;
+}
+
+char *alloc_parser(char *line) {
+  char *allocs[] = {"malloc(", "calloc("};
+  char *alloc_ptr;
+  char *sc_ptr;
+  char *cm_ptr;
+  char *param = malloc(sizeof(char) * 100);
+  for (int i = 0; i < 2; i++) {
+    if ((alloc_ptr = strstr(line, allocs[i])) != NULL &&
+        (sc_ptr = strchr(line, ';')) != NULL) {
+      strncpy(param, alloc_ptr + strlen(allocs[i]),
+              rstrchr(line, ')') - alloc_ptr);
+      //Pedrams added feature to replace Callocs comma with *, 
+      //i.e lenght, sizeof(int) ---> lenght * sizeof(int)
+      if((cm_ptr = strchr(param, ','))){
+        printf("%s\n",cm_ptr);
+        int index = -1 * (int)(param - cm_ptr);
+        printf("%d\n",index);
+        param[index] = '*';
+      }
+      return param;
+    }
+  }
+  free(param);
+  return NULL;
+}
+char* get_array_size(char* name){
+    char* size = calloc(MAX_NAME_LENGTH ,sizeof(char));
+    char* op_ptr;
+    char* cl_ptr;
+    op_ptr = strchr(name, '[');
+    cl_ptr = strchr(name, ']');
+
+    strncpy(size, op_ptr + 1, cl_ptr - op_ptr - 1);
+    strip_whitespace(size);
+    if (strlen(size)>0){
+        return size;
+    }
+    free(size);
+    return NULL;
+}
+
+char* get_array_name(char* name){
+    char* arryname = calloc(MAX_NAME_LENGTH ,sizeof(char));
+    char* op_ptr;
+    op_ptr = strchr(name, '[');
+    strncpy(arryname, name, op_ptr - name);
+    strip_whitespace(arryname);
+    return arryname;
+}
 
 
+
+int get_argument_count(char *string){
+    
+    char* op_ptr;
+    char* cl_ptr;
+    char* token;
+   
+    int i = 0;
+    char* arryname = calloc(MAX_NAME_LENGTH ,sizeof(char));
+   
+    op_ptr = strchr(string, '{');
+    cl_ptr = strchr(string, '}');
+
+    strncpy(arryname, op_ptr + 1, cl_ptr - op_ptr - 1);
+    strip_whitespace(arryname);
+    if(strlen(arryname) == 0){
+        return 0;
+    }
+
+    while ((token = strtok_r(arryname, ",", &arryname))){
+        i = i + 1;
+    } 
+
+    free(arryname);
+    return i;
+}
 
 int main(int argc, char ** argv){
+    
+    char*s = "name0[6] = {1,2,3,4,5}";
+    char*s1 = "name1[7] = {   }";
+  
 
-    char*s = "void function()";
-    char*b = "void function(  )";
-    char*c = "void function(int a, char c )"; 
+    
+    printf("%d\n",get_argument_count(s));
+    
+    printf("%d\n",get_argument_count(s1));
 
-    printf("%s\n", get_function_params(s));
-    printf("%s\n", get_function_params(b));
-    printf("%s\n", get_function_params(c));
-
+   
     return 0;
 }
