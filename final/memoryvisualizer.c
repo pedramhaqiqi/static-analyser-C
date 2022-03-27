@@ -119,7 +119,7 @@ void errors(int argc, char **argv) {
 
 char *rstrchr(char *str, char c) {
     //(reads from right) Returns pointer to c in str, and null if it doesnt exist
-  for (int i = strlen(str)-1; i >= 0; --i) {
+  for (int i = strlen(str)-1; i >= 0; i--) {
     if (str[i] == c) return &str[i];
   }
   return NULL;
@@ -136,7 +136,7 @@ char *alloc_parser(char *line) {
         (sc_ptr = strchr(line, ';')) != NULL) {
       strncpy(param, alloc_ptr + strlen(allocs[i]),
               rstrchr(line, ')') - alloc_ptr);
-      //Pedrams added feature to replace Callocs comma with *, 
+      //added feature to replace Callocs comma with *, 
       //i.e lenght, sizeof(int) ---> lenght * sizeof(int)
       if((cm_ptr = strchr(param, ','))){
         int index = -1 * (int)(param - cm_ptr);
@@ -149,25 +149,34 @@ char *alloc_parser(char *line) {
   return NULL;
 }
 
+
+int get_consec_asterisk(char *s) {
+  int consec=0;
+  for (int d=0;d<strlen(s);d++) {
+    if (s[d]=='*')
+      consec++;
+    else if (!isspace(s[d]))
+      break;
+  }
+  return consec;
+}
+
 char *get_type(char *line) {
   // Returns the type of the line as a char *
   // for pointers and [] need to remove space
   char *type = malloc(sizeof(char) * MAX_TYPE_LENGTH);
-  char fmt[MAX_TYPE_LENGTH];
-  char temp[strlen(line) + 1];
   char *types_native[] = {"void", "int", "float", "char"};
-  char *types_ext[] = {" %[(**)]", " %[*]", "%[ ]"};
-
+  
   for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 3; j++) {
+    if (strncmp(types_native[i], line, strlen(types_native[i])) == 0) {
+      // We matched 'types_native[i]' with beginning of line
       strcpy(type, types_native[i]);
-      strcat(type, types_ext[j]);
-      sprintf(fmt, "%s", type);
-      if (sscanf(line, fmt, temp) > 0) {
-        strcpy(type, types_native[i]);
-        strcat(type, j == 0 ? "**" : (j == 1 ? "*" : ""));
-        return type;
+      if (strlen(line) > strlen(types_native[i])) {
+        int nca = get_consec_asterisk(line+strlen(types_native[i]));
+        for (int j=0; j<nca; j++)
+          strcat(type, "*");
       }
+      return type;
     }
   }
   free(type);
@@ -193,8 +202,6 @@ char *parse_by_eql(char *string) {
   char *copyof;
   char *token;
 
-
-
   copyof = strdup(string);
 
   token = strtok_r(copyof, "=", &copyof);
@@ -212,14 +219,18 @@ char *get_var_name(char *type, char *line) {
   char *index_type;
 
   if ((index_semi = rstrchr(line, ';')) == NULL) {
+
       index_semi = line + strlen(line);
+
   }
   index_type = strstr(line, type) + strlen(type);
   if ((index_star = strchr(line, '*')) != NULL) {
     if ((index_eql = strchr(line, '=')) != NULL) {
       strncpy(names, index_star + 1, index_eql - index_star - 1);
+      
     } else {
       strncpy(names, index_star + 1, index_semi - index_star - 1);
+     
     }
 
   } else {
@@ -229,6 +240,7 @@ char *get_var_name(char *type, char *line) {
       strncpy(names, index_type, index_semi - index_type);
     }
   }
+  
   return names;
 }
 
@@ -498,22 +510,22 @@ int main(int argc, char **argv) {
   FILE *fp = fopen(argv[1], "r");
   while (fgets(line, MAX_LINE_LENGTH, fp) != NULL) {
     strip_whitespace(line);
-    
     if ((type = get_type(line)) != NULL) { 
-        
+      
       // Is a variable or function
       if (line[strlen(line) - 1] == ';') {
+
          
         sprintf(size, "sizeof(%s)", type);
 
         // Is a global variable definition
         // we need to check if the line has commas
-         
+
         if(strchr(get_var_name(type, line), '[')){
+            
              strcpy(var,get_var_name(type, line));
             //Global array declaration
                 if(strchr(line, ',')){
-                   
                     //mutliple declaration (must have array size)
                     //single arrays with = {, , ,}
                     // type array [1], arra[2];
@@ -551,16 +563,6 @@ int main(int argc, char **argv) {
             
           // single variables parsed as global
           strcpy(var, get_var_name(type, line));
-          if (strcmp(type, "char*") == 0){
-              if(rstrchr(line, '"')){
-                  strncpy(de_star_type, type, strlen(type) - 1);
-                  lit_string = get_literral(line);
-                  sprintf(svar, "*%s", var);
-                  sprintf(size, "%lu*sizeof(%s)", strlen(lit_string),de_star_type);
-
-                  RODATA_variables = append_var(RODATA_variables, size, svar, type);
-              }
-          }
           global_variables = append_var(global_variables, size, var, type);
         }
         
@@ -635,16 +637,7 @@ int main(int argc, char **argv) {
                   parse_by_comma(local_variables, var, size, type);
             } else {
               // single variables parserd 
-              if (strcmp(type, "char*") == 0){
-                if(rstrchr(line, '"')){
-                    strncpy(de_star_type, type, strlen(type) - 1);
-                    lit_string = get_literral(line);
-                    sprintf(svar, "*%s", var);
-                    sprintf(size, "%lu*sizeof(%s)", strlen(lit_string),de_star_type);
-
-                    RODATA_variables = append_var(RODATA_variables, size, svar, type);
-                }
-            }
+             
               strcpy(var, get_var_name(type, line));
               local_variables = append_var(local_variables, size, var, type);
             }
@@ -746,3 +739,14 @@ int main(int argc, char **argv) {
 
   return 0;
 }
+
+// int main(int argc, char** argv){
+//   char *sample = "char  * * ** variable";
+//   char x[20];
+//   strncpy(x, get_type(sample), 20);
+//   printf("%s\n", x);
+
+
+
+//   return 0;
+// }
