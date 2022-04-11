@@ -6,7 +6,6 @@ gcc memoryvisualizer.c -o memory
 ./memory <file.c>
 
 
-
 A static analyzer which takes in sourcecode.c and outputs a memory model for the program.
 - Description:
     - lists the name of the variables in the corresponding memory regions.
@@ -54,9 +53,11 @@ typedef struct variable {
 } VAR;
 
 typedef struct function {
+  int totallines; //number of lines per function
   char name[MAX_NAME_LENGTH];
   VAR *var_head;  // local variables
   VAR *heap_head; // locally vars that have memory on heap
+  VAR *var_lit; //locally scoped vars on RODATA
   struct function *next;
 } FUN;
 
@@ -119,8 +120,44 @@ char *rstrchr(char *str, char c)
     Locally created strchr function that reads ther line from the right to find first occurance of char c. Returns a char* to that character.
 
 VAR *parse_by_comma(VAR *head, char *string, char *size, char *type)
+
+    Returning a new linked list head, that takes
+    line of variables, given type and will append 
+    to the *head LL. 
     
 VAR *parse_by_comma_array(VAR *head, char *string, char *type)
+    Retruning a new head of linked list, parses
+    multiple variables on a line and appends to *head of linked list
+
+Many string manipulation and comprehendors such as:
+    void strip_star(char* line);  
+    //Strip star from type or pointer
+    void strip_whitespace(char* line);
+    //Strip leading and ending whitespace
+    char* get_litteral(char* line);
+    //Grab string portion of string literall
+
+Print functions to output the result in the specified format:
+
+    void print_function_heap(FUN* head)
+    void print_global_vars(VAR *head) 
+    void print_ro_vars(VAR *head)
+    void print_ro_vars_loc(FUN *head)
+    void print_function_stack(FUN * head)
+
+Statistics:
+
+ Total number of lines in the file: 
+    *All lines including whitespace, exluding open and closed brackets
+
+ Total number of lines per functions:
+    *All functions listed with the number of lines
+    per.
+
+ Total number of variables per function:
+    *All functions listed with the number of variables per.
+
+
 
 Thank you for reading this, hope you enjoy;
 Further documentation within source code.
