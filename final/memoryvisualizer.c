@@ -19,11 +19,12 @@ typedef struct variable {
 } VAR;
 
 typedef struct function {
-  //  int totallines;
+  int totallines;
   //  int totalvar;
   char name[MAX_NAME_LENGTH];
   VAR *var_head;  // local variables
   VAR *heap_head; // locally vars that have memory on heap
+  VAR *var_lit; //locall vars that are on RODATA
   struct function *next;
 } FUN;
 
@@ -83,6 +84,8 @@ FUN *get_new_fun(char *name) {
   res->var_head = NULL;
   res->next = NULL;
   res->heap_head = NULL;
+  res->var_lit = NULL;
+  res -> totallines = 0;
   return res;
 }
 
@@ -185,12 +188,22 @@ char *get_type(char *line) {
 
 char *get_function_name(char *line) {
   // Assume line contains a function header
-
-  char *name = malloc(sizeof(char) * MAX_NAME_LENGTH);
+  char *ptr_type[] = {"void*", "int*", "float*", "char*"};
+  char *name = calloc(MAX_NAME_LENGTH, sizeof(char));
   char type[MAX_TYPE_LENGTH];
   char fmt[MAX_TYPE_LENGTH];
+  char *ptr;
+  char *openbr;
 
   strcpy(type, get_type(line));
+  for(int i = 0; i < 4; i++){
+    if(strcmp(ptr_type[i], type) == 0){
+      if((ptr = strchr(line, '*')) != NULL && ((openbr = strchr(line, '('))!= NULL)){
+        strncpy(name, ptr + 1, openbr - ptr - 1);
+        return name;
+        }
+    }
+  }
   sprintf(fmt, "%s%%[^(]", type);
   sscanf(line, fmt, name);
   return name;
@@ -410,9 +423,12 @@ char* get_literral(char* line){
 
     op_ptr = strchr(line, '"');
     cl_ptr = rstrchr(line, '"');
-
+    if(op_ptr != NULL && cl_ptr != NULL){
     strncpy(lit, op_ptr+1, cl_ptr - op_ptr -1);
     return lit;
+    }
+    free(lit);
+    return NULL;
 }
 
 int replace_type(char* type){
@@ -462,10 +478,22 @@ void print_global_vars(VAR *head) {
 
 void print_ro_vars(VAR *head) {
     while (head != NULL) {
-        printf("%s\t%s\t%s\t%s\n", head->name,"literal", head->type,
+        printf("%s\t%s\t%s\t%s\n", head->name,"global", head->type,
         head->size);
         head = head->next;
     }
+}
+void print_ro_vars_loc(FUN *head) {
+  VAR *temp_var;
+  while(head != NULL){
+    temp_var = head->var_lit;
+    while(temp_var != NULL){
+      printf("%s\t%s\t%s\t%s\n", temp_var->name, head->name, temp_var->type,
+              temp_var->size);
+      temp_var=temp_var->next;
+    }
+    head = head -> next;
+  }
 }
 
 void print_function_stack(FUN * head){
@@ -530,7 +558,7 @@ int main(int argc, char **argv) {
   char tmpsize[MAX_NAME_LENGTH];
   char tmptype[MAX_NAME_LENGTH];
 
-  char *de_star_type = calloc(MAX_NAME_LENGTH ,sizeof(char));
+  char *de_star_type = calloc(100, sizeof(char));
   char *array_size;
   char *type;
   char *array_name;
@@ -539,7 +567,8 @@ int main(int argc, char **argv) {
   VAR *global_variables = NULL;
   VAR *local_variables = NULL;
   VAR *heap_variables = NULL;
-  VAR *RODATA_variables = NULL;
+  VAR *RODATA_variables_global = NULL;
+  VAR *RODATA_variables_local = NULL;
 
   FUN* functions = NULL;
 
@@ -590,14 +619,21 @@ int main(int argc, char **argv) {
                 
             } 
         else if(strchr(line, ',')) {
-           
+  
           // If it does have commas, we need to find the variables names by
           // parsing by commas 
           
           strcpy(var, get_var_name(type, line));
           global_variables = parse_by_comma(global_variables, var, size, type);
           
-        } else {
+        }
+        else if(strcmp(type, "char*") == 0 && get_literral(line) != NULL){
+          strcpy(var, get_var_name(type, line));
+          lit_string = get_literral(line);
+          strncpy(de_star_type, type, strlen(type) - 1);
+          sprintf(tmpsize,"%lu*sizeof(%s)", strlen(lit_string), de_star_type);
+          RODATA_variables_global = append_var(RODATA_variables_global, tmpsize, var, de_star_type);
+        }else {
             
           // single variables parsed as global
           strcpy(var, get_var_name(type, line));
@@ -612,6 +648,7 @@ int main(int argc, char **argv) {
         // First get function name:
         local_variables = NULL;
         heap_variables = NULL;
+        
         strcpy(function_name, get_function_name(line));
         FUN *new_function = get_new_fun(function_name);
         // parse parameters
@@ -621,6 +658,7 @@ int main(int argc, char **argv) {
         // parse inner variables
         while (fgets(line, MAX_LINE_LENGTH, fp) != NULL) {
           strip_whitespace(line);
+          new_function->totallines ++;
           if (line[strlen(line) - 1] == '}') break;
           if ((type = get_type(line)) != NULL) {
             // proper var dec
@@ -661,7 +699,7 @@ int main(int argc, char **argv) {
                 strcpy(var, get_var_name(type, line));
                 local_variables = append_var(local_variables, size, var , type);
 
-                //allocate hon heap
+                //allocate on heap
                 strncpy(de_star_type, type, strlen(type) - 1);
                 sprintf(size, "%s", alloc_parser(line));
                 sprintf(svar, "*%s", var);
@@ -673,7 +711,15 @@ int main(int argc, char **argv) {
               strcpy(var, get_var_name(type, line));
               local_variables =
                   parse_by_comma(local_variables, var, size, type);
-            } else {
+            } else if(strcmp(type, "char*") == 0 && get_literral(line) != NULL){
+              strcpy(var, get_var_name(type, line));
+              lit_string = get_literral(line);
+              strncpy(de_star_type, type, strlen(type) - 1);
+              sprintf(tmpsize,"%lu*sizeof(%s)", strlen(lit_string), de_star_type);
+              RODATA_variables_local = append_var(RODATA_variables_local, tmpsize, var, de_star_type);
+            
+            }
+            else {
               // single variables parserd 
              
               strcpy(var, get_var_name(type, line));
@@ -697,8 +743,6 @@ int main(int argc, char **argv) {
                         sprintf(size, "%s", alloc_parser(line));
                         sprintf(svar, "*%s", temp->name);
                         heap_variables = append_var(heap_variables, size, svar, de_star_type);
-                        free(de_star_type);
-                        free(temp_name);
                    }
                    temp = temp->next;
                }
@@ -709,6 +753,7 @@ int main(int argc, char **argv) {
         // add funtion to function LL's,(NULL CHECK?)
         new_function -> var_head = local_variables;
         new_function -> heap_head = heap_variables;
+        new_function -> var_lit = RODATA_variables_local;
         functions = append_fun(functions, new_function); 
       }
       free(type); 
@@ -729,7 +774,9 @@ int main(int argc, char **argv) {
 
   printf("### ROData ###       scope type  size\n");
 
-  print_ro_vars(RODATA_variables);
+  print_ro_vars(RODATA_variables_global);
+  print_ro_vars_loc(functions);
+  
 
   printf("### static data ###\n");
   print_global_vars(global_variables);
@@ -760,31 +807,40 @@ int main(int argc, char **argv) {
 
   printf("%d\n", i);
 
-  printf("Total number of functions: \n");
 
+  //NUMBER OF FUNCTIONS 
   FUN * temp = functions;
   for (i=0; temp != NULL; temp=temp->next, i++) {
     ;
   }
-
-  printf("%d\n", i);
-
+  printf("Total number of functions: %d\n", i);
+  temp = functions;
+  while(temp != NULL){
+    printf("%s\n", temp->name);
+    temp = temp->next;
+  }
+  //Lines per function
   printf("Total number of lines per functions:\n");
-  
+  temp = functions;
+  while(temp != NULL){
+    //Take out the { and } from count
+    printf("%s: %d\n", temp->name, temp->totallines - 2);
+    temp = temp->next;
+  }
+  //lines per variable
   printf("Total number of variables per function:\n");
-
+  temp = functions;
+  VAR *temp_var;
+  while(temp != NULL){
+    temp_var = temp->var_head;
+    for (i=0; temp_var != NULL; temp_var=temp_var->next, i++){
+      ;
+    }
+    printf("%s: %d\n", temp->name, i);
+    temp = temp -> next;
+  }
   printf("//////////////////////////////\n");
-
+  free(de_star_type);
   return 0;
 }
 
-// int main(int argc, char** argv){
-//   char *sample = "char  * * ** variable";
-//   char x[20];
-//   strncpy(x, get_type(sample), 20);
-//   printf("%s\n", x);
-
-
-
-//   return 0;
-// }
