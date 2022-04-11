@@ -135,7 +135,7 @@ char *alloc_parser(char *line) {
     if ((alloc_ptr = strstr(line, allocs[i])) != NULL &&
         (sc_ptr = strchr(line, ';')) != NULL) {
       strncpy(param, alloc_ptr + strlen(allocs[i]),
-              rstrchr(line, ')') - alloc_ptr);
+              rstrchr(line, ')') - alloc_ptr - 7);
       //added feature to replace Callocs comma with *, 
       //i.e lenght, sizeof(int) ---> lenght * sizeof(int)
       if((cm_ptr = strchr(param, ','))){
@@ -415,6 +415,17 @@ char* get_literral(char* line){
     return lit;
 }
 
+int replace_type(char* type){
+    if(strcmp(type, "int") == 0){return sizeof(int);}
+    else if(strcmp(type, "char") == 0){return sizeof(char);}
+    else if(strcmp(type, "float") == 0){return sizeof(float);}
+    else if(strcmp(type, "int*") == 0){return sizeof(int*);}
+    else if(strcmp(type, "char*") == 0){return sizeof(char*);}
+    else if(strcmp(type, "float*") == 0){return sizeof(float*);}
+    else if(strcmp(type, "char**") == 0){return sizeof(char**);}
+    return 0;
+}
+
 
 void print_function_heap(FUN* head) {
   VAR * heap_var;
@@ -430,10 +441,22 @@ void print_function_heap(FUN* head) {
 }
 
 void print_global_vars(VAR *head) {
+    char *type[] = {"int", "float", "char","int*", "float*", "char*", "char**"} ;
+    int replaced = 0;
     while (head != NULL) {
-        printf("%s\t%s\t%s\t%s\n", head->name,"global", head->type,
-        head->size);
-        head = head->next;
+        replaced = 0;
+        for(int i = 0; i < 7; i++){
+          if(strcmp(head->type,type[i]) == 0){
+            replaced = 1;
+            printf("%s\t%s\t%s\t%d\n", head->name,"global", head->type,
+            replace_type(head->type));
+          }
+        }
+        if(replaced == 0){
+          printf("%s\t%s\t%s\t%s\n", head->name,"global", head->type,
+            head->size);
+        }
+        head = head->next; 
     }
 }
 
@@ -447,12 +470,25 @@ void print_ro_vars(VAR *head) {
 
 void print_function_stack(FUN * head){
   VAR * stack_var;
+  char *type[] = {"int", "float", "char","int*", "float*", "char*", "char**"} ;
+  int replaced;
     while (head != NULL) {
       stack_var = head->var_head;
         while(stack_var != NULL) {
-          printf("%s\t%s\t%s\t%s\n", stack_var->name,head->name, stack_var ->type,
-           stack_var ->size);
-            stack_var  = stack_var->next;
+          replaced = 0;
+          for(int i = 0; i < 7; i++){
+           if(strcmp(stack_var->type, type[i]) == 0){
+             printf("%s\t%s\t%s\t%d\n", stack_var->name,head->name, stack_var->type,
+              replace_type(stack_var->type));
+              replaced = 1;
+           }
+           
+          }
+        if(replaced == 0){
+          printf("%s\t%s\t%s\t%s\n", stack_var->name,head->name, stack_var->type,
+              stack_var->size);
+        }
+        stack_var = stack_var->next;
       }
         head = head->next;
     }
@@ -482,6 +518,8 @@ FUN * get_reverse_fun(FUN * head) {
   }
   return res;
 }
+
+
 
 int main(int argc, char **argv) {
   char line[MAX_LINE_LENGTH];
@@ -625,7 +663,7 @@ int main(int argc, char **argv) {
 
                 //allocate hon heap
                 strncpy(de_star_type, type, strlen(type) - 1);
-                sprintf(size, "sizeof(%s)", alloc_parser(line));
+                sprintf(size, "%s", alloc_parser(line));
                 sprintf(svar, "*%s", var);
                 heap_variables = append_var(heap_variables, size, svar, de_star_type);
                 free(de_star_type);
@@ -656,7 +694,7 @@ int main(int argc, char **argv) {
                while(temp != NULL){
                    if(strcmp(temp->name, temp_name) == 0){
                         strncpy(de_star_type, temp->type, strlen(temp->type) - 1);
-                        sprintf(size, "sizeof(%s)", alloc_parser(line));
+                        sprintf(size, "%s", alloc_parser(line));
                         sprintf(svar, "*%s", temp->name);
                         heap_variables = append_var(heap_variables, size, svar, de_star_type);
                         free(de_star_type);
