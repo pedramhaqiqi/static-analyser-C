@@ -1,166 +1,126 @@
-# static-analyser-C
+# Static Memory Analyzer
 
-TO RUN:
-Please enter in terminal
+## Overview
+
+This project is a Static Memory Analyzer written in C that takes in a C source code file as input and outputs a memory model of the program. The tool performs static analysis to track variables and memory usage, providing a detailed report of the memory model, including variable sizes, types, and locations in memory, while also providing useful statistics about the code.
+
+## Features
+
+	•	Memory Visualization: Lists variable names in their corresponding memory regions, along with the function to which they belong, their type, and their size as determined by the machine.
+	•	Permanent Trace: Reports variables and memory requested, without considering whether they have been deallocated or released.
+	•	Statistics Reporting:
+	•	Total number of lines in the file
+	•	Total number of functions
+	•	Total number of lines per function
+	•	Total number of variables per function
+	•	Linked Lists for Memory Partitions: Uses linked lists to store global, local, heap, and read-only (RODATA) variables, and outputs them efficiently.
+
+## How It Works
+
+The analyzer parses the C source code and identifies all variables and functions in the file. It categorizes variables based on their memory location (stack, heap, or global) and produces a visual representation of the memory model. Additionally, the program reports statistics about the structure of the source code.
+
+	1.	Source Code Parsing: Identifies global and local variables, function parameters, and heap allocations.
+	2.	Memory Model: Outputs the memory model by tracking where variables reside (stack, heap, global memory, or read-only data).
+	3.	Error Handling: Reports any errors, such as “file not found,” and outputs results to standard output.
+
+## Usage
+
+To compile and run the analyzer, use the following commands:
+
 gcc memoryvisualizer.c -o memory
 ./memory <file.c>
 
+	•	<file.c>: The C source code file you wish to analyze. The program outputs the memory model and statistics about the file.
 
-A static analyzer which takes in sourcecode.c and outputs a memory model for the program.
-- Description:
-    - lists the name of the variables in the corresponding memory regions.
-    - together with the function to where it belongs.
-    - its type and size in the machine where the analysis is being performed.
-    - program will leave variables or memory requested by  reported without considering whether they have been deallocated or released: a permanent trace
+Program Assumptions
 
-    - The program will report a couple of additional statistics such as
-        - total number of lines in the file
-        - total number of functions
-        - total number of lines per functions
-        - total number of variables per function
-    - 
-    - The program will report results to "standard output", and any potential error (e.g. specified file not found) 
+	•	All the code to analyze is contained in a single file.
+	•	The code is valid C code.
+	•	Functions are not split between declaration and implementation.
+	•	Variable declarations occur only at the beginning of functions.
+	•	The format for variable declarations follows:
 
-- File Assumptions:
-    - all the code to analyze will be contained in one single file
-    - the code will be proper C code
-    - functions will not be split in declaration and implementation, they will be just defined in one single place in the file
-    - within functions, variables declarations will happen only at the beggining of the functions
-   
-- Source code assumptions:
-    - Functions:
-        - { }  positioned under name of the function
-        - variables declarations are always at the beginning of the functions 
-        - variables declarations do not expand more than one line 
-    - Variable declarations:
-        -  TYPE var1, var2, ...;	
- TYPE var11, var12, ...; 
-    - Possible types:
-        - int, float, char, void
-        - int *, float *, char *
-        - int [], float [], char[]
+TYPE var1, var2, ...;
 
-Main Parsing strategy:
-The problem boiled down to being external variables and internal, which would be all globally declared variables and locally (by the function). This meant being able to identify between the two, and iterate throught each funciton and grabbing the variables in according structs
 
-Strcuts used:
+	•	Supported variable types:
+	•	int, float, char, void
+	•	Pointers (int *, float *, char *)
+	•	Arrays (int [], float [], char [])
+
+## Main Parsing Strategy
+
+The program differentiates between global and local variables. It iterates through each function, identifying the local variables within their scope and appending them to the appropriate memory partition (global, local, heap, or read-only data).
+
+##  Key Data Structures
+
+	•	Variable Struct (VAR):
 
 typedef struct variable {
-  char size[MAX_NAME_LENGTH];
-  char name[MAX_VAR_LENGTH];
-  char type[MAX_TYPE_LENGTH];
-  struct variable *next;
+    char size[MAX_NAME_LENGTH];  // Size of the variable
+    char name[MAX_VAR_LENGTH];   // Name of the variable
+    char type[MAX_TYPE_LENGTH];  // Type of the variable
+    struct variable *next;       // Pointer to the next variable in the list
 } VAR;
 
+
+	•	Function Struct (FUN):
+
 typedef struct function {
-  int totallines; //number of lines per function
-  char name[MAX_NAME_LENGTH];
-  VAR *var_head;  // local variables
-  VAR *heap_head; // locally vars that have memory on heap
-  VAR *var_lit; //locally scoped vars on RODATA
-  struct function *next;
+    int totallines;               // Number of lines per function
+    char name[MAX_NAME_LENGTH];   // Name of the function
+    VAR *var_head;                // Local variables
+    VAR *heap_head;               // Variables allocated on the heap
+    VAR *var_lit;                 // Variables in read-only data (RODATA)
+    struct function *next;        // Pointer to the next function in the list
 } FUN;
 
 
-The variables struct contains the fields of size, name, type and the pointer to the next linked list. The reasoning behind all the feilds being of type char* is to get around the allocation of sizes to malloced and alloced arguments, since the sizeoutput of those types will be sizeof(parametr inside).
 
-For each memory partition, a linked list has been used. By checking the declaration inside main one can see:
-   
-    VAR *global_variables = NULL;
-    VAR *local_variables = NULL;
-    VAR *heap_variables = NULL;
-    VAR *RODATA_variables = NULL;
+##  Code Example
 
-Each linked list used the same VAR stuct, by this method we will keep the number of structs to the minimal.
+A typical function analyzed by the tool would be represented as follows:
 
-Functions used for linked list operations:
+int *arr = malloc(10 * sizeof(int));  // Tracked as a heap variable
+arr[0] = 5;
+free(arr);  // Memory operations are tracked, even after free
 
-FUN *append_fun(FUN *head, FUN *fun) : 
-    Appends fun to the existing head function linked list
-FUN *get_new_fun(char *name):
-    Create and give a new FUN* function struct
-VAR *append_var(VAR *head, char *size, char *name, char *type):
-    Append the existing linked list head to the given VAR struct
-VAR *get_new_var(char *size, char *name, char *type):
-    Create and give a new VAR* varible struct
+##  Linked Lists for Memory Tracking
 
+	•	Global Variables: Stored in the global_variables linked list.
+	•	Local Variables: Stored in the local_variables linked list.
+	•	Heap Variables: Stored in the heap_variables linked list.
+	•	Read-Only Data (RODATA) Variables: Stored in RODATA_variables.
 
-To find global variables the following formula was used:
+##  Functions for Linked List Operations
 
-if (LINE HAS TYPE) AND if (LINE ENDS IN  == ';') 
+	•	FUN *append_fun(FUN *head, FUN *fun): Appends a function to the list.
+	•	VAR *append_var(VAR *head, char *size, char *name, char *type): Appends a variable to the list.
+	•	VAR *get_new_var(char *size, char *name, char *type): Creates a new variable struct.
 
-Then we must be a global variabled, until we get to function header
-inside of a function header 
+##  Most Used Functions
 
-While(next line is not null) and if (line[strlen(line) - 1] == '}') break; 
+	•	VAR* get_function_params(VAR* var, char* line): Parses function parameters and appends them to the local variable list.
+	•	char *get_var_name(char *type, char *line): Extracts variable names from a line.
+	•	char *get_type(char *line): Determines whether the line is declaring a function or a variable.
 
-Then we have finished looking at the local scope of the function and we can append to our function stuct:
+Print Functions
 
-new_function -> var_head = local_variables
-new_function -> heap_head = heap_variables
-functions = append_fun(functions, new_function)
+The program outputs results in the specified format, using the following functions:
 
+	•	void print_function_heap(FUN* head)
+	•	void print_global_vars(VAR *head)
+	•	void print_ro_vars(VAR *head)
+	•	void print_function_stack(FUN *head)
 
-Most used functions:
+Statistics Reported
 
-VAR* get_function_params(VAR* var, char* line)
+	•	Total number of lines in the file (excluding braces {}).
+	•	Total number of lines per function.
+	•	Total number of variables per function.
 
-    The function takes the current line which by assumption is the function header, parses the parameters and append to the given Var LL. Returning the new head
+Further Documentation
 
-char *get_var_name(char *type, char *line)
+For more details, refer to the comments within the source code.
 
-    This function takes the type and the current lines and returns the name of the variable names as a char*
-
-char *get_type(char *line)
-
-    This OP robust function takes the current line as input and outputs the type of the line (either function or variable) as a char*
-
-char *rstrchr(char *str, char c)
-
-    Locally created strchr function that reads ther line from the right to find first occurance of char c. Returns a char* to that character.
-
-VAR *parse_by_comma(VAR *head, char *string, char *size, char *type)
-
-    Returning a new linked list head, that takes
-    line of variables, given type and will append 
-    to the *head LL. 
-    
-VAR *parse_by_comma_array(VAR *head, char *string, char *type)
-    Retruning a new head of linked list, parses
-    multiple variables on a line and appends to *head of linked list
-
-Many string manipulation and comprehendors such as:
-    void strip_star(char* line);  
-    //Strip star from type or pointer
-    void strip_whitespace(char* line);
-    //Strip leading and ending whitespace
-    char* get_litteral(char* line);
-    //Grab string portion of string literall
-
-Print functions to output the result in the specified format:
-
-    void print_function_heap(FUN* head)
-    void print_global_vars(VAR *head) 
-    void print_ro_vars(VAR *head)
-    void print_ro_vars_loc(FUN *head)
-    void print_function_stack(FUN * head)
-
-Statistics:
-
- Total number of lines in the file: 
-    *All lines including whitespace, exluding open and closed brackets
-
- Total number of lines per functions:
-    *All functions listed with the number of lines
-    per.
-
- Total number of variables per function:
-    *All functions listed with the number of variables per.
-
-
-
-Thank you for reading this, hope you enjoy;
-Further documentation within source code.
-
-
-
+Thank You
